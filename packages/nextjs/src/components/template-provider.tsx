@@ -6,7 +6,8 @@ import { Toaster } from "./ui/sonner";
 import { UpProvider } from "./up-provider";
 import { config } from "../lib/wagmi";
 
-const CelebrityApp = ({ children }: { children: React.ReactNode }) => {
+// rename this with the name of your app after fork
+const TemplateApp = ({ children }: { children: React.ReactNode }) => {
   return (
     <ThemeProvider attribute="class" defaultTheme="system">
       <UpProvider>{children}</UpProvider>
@@ -23,7 +24,8 @@ export const queryClient = new QueryClient({
   },
 });
 
-export const CelebrityAppWithProviders = ({
+// This is the main provider for the app. It wraps the app with all the providers needed.
+export const TemplateAppWithProviders = ({
   children,
 }: {
   children: React.ReactNode;
@@ -31,7 +33,7 @@ export const CelebrityAppWithProviders = ({
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        <CelebrityApp>{children}</CelebrityApp>
+        <TemplateApp>{children}</TemplateApp>
       </QueryClientProvider>
     </WagmiProvider>
   );
