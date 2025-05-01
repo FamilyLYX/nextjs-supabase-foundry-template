@@ -1,0 +1,278 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Cursor Rules for NextJS-Supabase-Foundry Template
+
+## TypeScript Best Practices
+- Write all code in TypeScript with proper typing
+- Use strict type checking for all components and functions
+- Prefer interfaces for object shapes and types for unions/primitives
+- Example:
+```typescript
+// Use specific types instead of any
+interface TransactionParams {
+  address: `0x${string}`;
+  amount: bigint;
+  metadata?: string;
+}
+
+// Use proper return types
+function processTransaction(params: TransactionParams): Promise<TransactionResult> {
+  // Implementation
+}
+```
+
+## Contract Interaction Patterns
+- Always use hooks for all contract interactions
+- Always use the up-provider to interact with contracts
+- Example pattern:
+
+```typescript
+import { useUpProvider } from "@/components/up-provider";
+import { toast } from "sonner";
+import { createPublicClient, http } from "viem";
+import { luksoTestnet } from "viem/chains";
+import { NFT_ABI} from "@/constants/dpp";
+const readClient = createPublicClient({
+  chain: luksoTestnet,
+  transport: http("https://rpc.testnet.lukso.network"),
+});
+
+export const useDPP = () => {
+  const { client, accounts, walletConnected } = useUpProvider();
+
+  const transferOwnershipWithUID = async ({
+    dppAddress,
+    to,
+    plainUidCode,
+  }: {
+    dppAddress: `0x${string}`;
+    to: `0x${string}`;
+    plainUidCode: string;
+  }) => {
+    if (!client || !walletConnected || !accounts?.[0]) {
+      toast.error("Please connect your Universal Profile wallet.");
+      return null;
+    }
+
+    try {
+      const tx = await client.writeContract({
+        abi: NFT_ABI,
+        address: dppAddress,
+        functionName: "transferOwnershipWithUID",
+        account: accounts[0],
+        args: [to, plainUidCode],
+        chain: client.chain,
+      });
+
+      const receipt = await readClient.waitForTransactionReceipt({ hash: tx });
+      if (receipt.status !== "success") {
+        toast.error("Transfer failed.");
+        return null;
+      }
+
+      toast.success("Ownership transferred successfully!");
+      return { tx };
+    } catch (err) {
+      console.error("Error transferring ownership:", err);
+      toast.error("Transfer failed.");
+      return null;
+    }
+  };
+
+  const getPublicMetadata = async (dppAddress: `0x${string}`) => {
+    try {
+      const data = await readClient.readContract({
+        abi: NFT_ABI,
+        address: dppAddress,
+        functionName: "getPublicMetadata",
+        args: [],
+      });
+      return data as string;
+    } catch (err) {
+      console.error("Error fetching metadata:", err);
+      return null;
+    }
+  };
+
+  const getEncryptedMetadata = async (dppAddress: `0x${string}`) => {
+    try {
+      const data = await readClient.readContract({
+        abi: NFT_ABI,
+        address: dppAddress,
+        functionName: "getEncryptedMetadata",
+        args: [],
+      });
+      return data as string;
+    } catch (err) {
+      console.error("Error fetching encrypted metadata:", err);
+      return null;
+    }
+  };
+
+  return {
+    transferOwnershipWithUID,
+    getPublicMetadata,
+    getEncryptedMetadata,
+    connectedWallet: accounts?.[0],
+    walletConnected,
+  };
+};
+```
+
+Key patterns demonstrated in this hook:
+1. Uses the `useUpProvider` hook to access the wallet client, accounts, and connection status
+2. Implements both write operations (transferOwnershipWithUID) and read operations (getPublicMetadata, getEncryptedMetadata)
+3. Properly validates connection state before attempting transactions
+4. Uses strong TypeScript typing for all parameters and return values
+5. Handles errors properly with try-catch blocks and user feedback via toast notifications
+6. Uses a separate read client for read-only operations
+7. Returns both methods and connection state information
+
+## File Naming Conventions
+- Rename template files to reflect your project's domain:
+  - `template-provider.tsx` → `contract-provider.tsx` or `up-provider.tsx`
+  - `template-component.tsx` → `contract-interaction.tsx`
+  - `useTemplateHook.ts` → `useContractFunction.ts`
+
+- Follow these naming conventions:
+  - React components: PascalCase (`ContractProvider.tsx`)
+  - Hooks: camelCase with "use" prefix (`useContractFunction.ts`)
+  - Utilities: camelCase (`contractUtils.ts`)
+  - Constants: UPPER_SNAKE_CASE (`CONTRACT_ADDRESSES.ts`)
+
+## Component Structure
+- Write components at a senior engineer level with proper separation of concerns
+- Example:
+
+```typescript
+import { useState, useCallback } from "react";
+import { useUpProvider } from "@/components/up-provider";
+
+interface ContractComponentProps {
+  contractAddress: `0x${string}`;
+  initialValue?: string;
+}
+
+export const ContractComponent = ({
+  contractAddress,
+  initialValue = "",
+}: ContractComponentProps) => {
+  const [value, setValue] = useState(initialValue);
+  const [isLoading, setIsLoading] = useState(false);
+  const { client, accounts, isConnected } = useUpProvider();
+  
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isConnected) return;
+    
+    setIsLoading(true);
+    try {
+      // Contract interaction logic
+      setIsLoading(false);
+    } catch (error) {
+      console.error(error);
+      setIsLoading(false);
+    }
+  }, [isConnected, value]);
+  
+  return (
+    <div>
+      <form onSubmit={handleSubmit}>
+        {/* Component UI */}
+      </form>
+    </div>
+  );
+};
+```
+
+## Error Handling
+- Implement proper error handling for all contract interactions
+- Use try/catch blocks for all async operations
+- Provide meaningful error messages to users
+
+```typescript
+try {
+  // Contract interaction
+} catch (error) {
+  if (error.code === 4001) {
+    // User rejected transaction
+    toast.error("Transaction was rejected");
+  } else if (error.message.includes("insufficient funds")) {
+    toast.error("Insufficient funds for transaction");
+  } else {
+    // Generic error handling
+    toast.error("Transaction failed");
+    console.error("Transaction error:", error);
+  }
+}
+```
+
+## State Management
+- Use React hooks for local state
+- Use context for global/shared state
+- Example provider pattern:
+
+```typescript
+import { createContext, useContext, useState, ReactNode } from "react";
+
+interface ProviderState {
+  // State properties
+}
+
+interface ProviderActions {
+  // Actions/methods
+}
+
+const StateContext = createContext<(ProviderState & ProviderActions) | undefined>(undefined);
+
+export const CustomProvider = ({ children }: { children: ReactNode }) => {
+  // State implementation
+  
+  return (
+    <StateContext.Provider value={{
+      // Provide state and actions
+    }}>
+      {children}
+    </StateContext.Provider>
+  );
+};
+
+export const useCustomState = () => {
+  const context = useContext(StateContext);
+  if (context === undefined) {
+    throw new Error("useCustomState must be used within a CustomProvider");
+  }
+  return context;
+};
+```
+
+## Testing
+- Write tests for all hooks and components
+- Test contract interactions with proper mocking
+
+## Documentation
+- Document all functions, hooks, and components
+- Use JSDoc for type documentation
+
+```typescript
+/**
+ * Hook for interacting with the contract
+ * @returns Object containing functions and state for contract interaction
+ */
+export const useContractFunction = () => {
+  // Implementation
+};
+```
+
+## Performance Optimization
+- Use memoization for expensive operations
+- Implement proper loading states for async operations
+- Optimize re-renders with useCallback and useMemo
+
+## Security
+- Never expose private keys or sensitive data in code
+- Use environment variables for API keys and endpoints
+- Validate all user inputs before sending to contracts
